@@ -242,8 +242,8 @@ class SimpleStatArb:
             self, 
             prices, 
             trading_instrument_symbol, 
-            sma_period = 20,
-            std_dev_period = 20,
+            sma_period = 50,
+            std_dev_period = 50,
             price_dev_num_prices = 200, 
             value_for_entry = 0.01,
             value_to_take_profit = 10, 
@@ -375,6 +375,7 @@ class SimpleStatArb:
         self._sma_for_std_dev_prices = {symbol: 0 for symbol in self.symbols}
         self._price_history_std_dev_prices = {}
         self._std_dev_prices = {symbol: 0 for symbol in self.symbols}
+        self._std_dev_prices_history = {symbol: [] for symbol in self.symbols}
         self._std_dev_prices_history_trading_instrument = []
         
         
@@ -496,10 +497,10 @@ class SimpleStatArb:
         7. Check if the risks were violated
         """
         
-        self._update_std_dev_prices(price_event)
         self._update_sma_for_price_dev(price_event)
         self._update_price_deviation_from_sma(price_event)
         self._update_correlations()
+        self._update_std_dev_price_deviations(price_event)
         self._update_difference_between_projected_and_actual_delta()
         if self.std_dev_influence_on_strategy is not None and self.std_dev_influence_on_strategy != 0:
             self._update_threshold_constants_based_on_std_dev()
@@ -591,67 +592,93 @@ class SimpleStatArb:
     ##################################################### HELPER FUNCTIONS OF THE _store_price_and_update_data_structures METHOD #####################################################
 
 
-    def _update_std_dev_prices(self, price_event):
-        """Helper function of the _store_price_and_update_data_structures method. Updates the standard deviation in the prices."""
+    # def _update_std_dev_prices(self, price_event):
+    #     """Helper function of the _store_price_and_update_data_structures method. Updates the standard deviation in the prices."""
         
-        for symbol in self.symbols:
-            if symbol not in self._price_history_std_dev_prices:
-                    self._price_history_std_dev_prices[symbol] = deque(maxlen = self.std_dev_period + 1)
+    #     for symbol in self.symbols:
+    #         if symbol not in self._price_history_std_dev_prices:
+    #                 self._price_history_std_dev_prices[symbol] = deque(maxlen = self.std_dev_period + 1)
 
-            self._price_history_std_dev_prices[symbol].append(price_event[symbol])
-            if len(self._price_history_std_dev_prices[symbol]) < 2:
-                self._std_dev_prices[symbol] = 0
-                self._sma_for_std_dev_prices[symbol] = price_event[symbol]
-            elif len(self._price_history_std_dev_prices[symbol]) > self.std_dev_period:
-                old_price = self._price_history_std_dev_prices[symbol].popleft()
+    #         self._price_history_std_dev_prices[symbol].append(price_event[symbol])
+    #         if len(self._price_history_std_dev_prices[symbol]) < 2:
+    #             self._std_dev_prices[symbol] = 0
+    #             self._sma_for_std_dev_prices[symbol] = price_event[symbol]
+    #         elif len(self._price_history_std_dev_prices[symbol]) > self.std_dev_period:
+    #             old_price = self._price_history_std_dev_prices[symbol].popleft()
 
-                self._prev_sma_for_std_dev_prices[symbol] = self._sma_for_std_dev_prices[symbol]
-                self._sma_for_std_dev_prices[symbol] = compute_rolling_mean_online(
-                    self._sma_for_std_dev_prices[symbol],
-                    self.std_dev_period,
-                    len(self._price_history_std_dev_prices[symbol]),
-                    price_event[symbol],
-                    old_price
-                    )
+    #             self._prev_sma_for_std_dev_prices[symbol] = self._sma_for_std_dev_prices[symbol]
+    #             self._sma_for_std_dev_prices[symbol] = compute_rolling_mean_online(
+    #                 self._sma_for_std_dev_prices[symbol],
+    #                 self.std_dev_period,
+    #                 len(self._price_history_std_dev_prices[symbol]),
+    #                 price_event[symbol],
+    #                 old_price
+    #                 )
 
-                self._std_dev_prices[symbol] = compute_rolling_std_dev_online(
-                    self._std_dev_prices[symbol],
-                    self._sma_for_std_dev_prices[symbol],
-                    self._prev_sma_for_std_dev_prices[symbol],
-                    self.std_dev_period,
-                    len(self._price_history_std_dev_prices[symbol]),
-                    price_event[symbol], 
-                    old_price
-                    )
-            else:
-                self._prev_sma_for_std_dev_prices[symbol] = self._sma_for_std_dev_prices[symbol]
-                self._sma_for_std_dev_prices[symbol] = compute_rolling_mean_online(
-                    self._sma_for_std_dev_prices[symbol],
-                    self.std_dev_period,
-                    len(self._price_history_std_dev_prices[symbol]),
-                    price_event[symbol]
-                    )
-                self._std_dev_prices[symbol] = compute_rolling_std_dev_online(
-                    self._std_dev_prices[symbol],
-                    self._sma_for_std_dev_prices[symbol],
-                    self._prev_sma_for_std_dev_prices[symbol],
-                    self.std_dev_period,
-                    len(self._price_history_std_dev_prices[symbol]),
-                    price_event[symbol]
-                    )
+    #             self._std_dev_prices[symbol] = compute_rolling_std_dev_online(
+    #                 self._std_dev_prices[symbol],
+    #                 self._sma_for_std_dev_prices[symbol],
+    #                 self._prev_sma_for_std_dev_prices[symbol],
+    #                 self.std_dev_period,
+    #                 len(self._price_history_std_dev_prices[symbol]),
+    #                 price_event[symbol], 
+    #                 old_price
+    #                 )
+    #         else:
+    #             self._prev_sma_for_std_dev_prices[symbol] = self._sma_for_std_dev_prices[symbol]
+    #             self._sma_for_std_dev_prices[symbol] = compute_rolling_mean_online(
+    #                 self._sma_for_std_dev_prices[symbol],
+    #                 self.std_dev_period,
+    #                 len(self._price_history_std_dev_prices[symbol]),
+    #                 price_event[symbol]
+    #                 )
+    #             self._std_dev_prices[symbol] = compute_rolling_std_dev_online(
+    #                 self._std_dev_prices[symbol],
+    #                 self._sma_for_std_dev_prices[symbol],
+    #                 self._prev_sma_for_std_dev_prices[symbol],
+    #                 self.std_dev_period,
+    #                 len(self._price_history_std_dev_prices[symbol]),
+    #                 price_event[symbol]
+    #                 )
             
-            if symbol == self.trading_instrument_symbol:
-                self._std_dev_prices_history_trading_instrument.append(self._std_dev_prices[symbol])
+    #         if symbol == self.trading_instrument_symbol:
+    #             self._std_dev_prices_history_trading_instrument.append(self._std_dev_prices[symbol])
                 
+    
+    def _update_std_dev_price_deviations(self, price_event):
+        for symbol in self.symbols:
+            if symbol not in self._price_deviation_from_sma_history:
+                self._price_deviation_from_sma_history[symbol] = deque(maxlen = self.std_dev_period + 1)
+                self._std_dev_price_deviation_history[symbol] = deque(maxlen = self.std_dev_period + 1) 
 
+            self._price_deviation_from_sma_history[symbol].append(price_event[symbol])
+            if len(self._price_deviation_from_sma_history[symbol]) < 2:
+                self._sma_for_price_dev_std_dev[symbol] = self._price_deviation_from_sma_history[symbol][-1]
+                self._std_dev_price_deviation[symbol] = 0
+                continue
+            
+            self._prev_sma_for_price_dev_std_dev[symbol] = self._sma_for_price_dev_std_dev[symbol]     
+            if len(self._price_deviation_from_sma_history[symbol]) > self.price_dev_num_prices:
+                old_price_dev = self._price_deviation_from_sma_history[symbol].popleft()
+                self._update_price_deviation_std_dev(symbol, old_price_dev)
+            else:
+                self._update_price_deviation_std_dev(symbol)
+                
+            self._std_dev_price_deviation_history[symbol].append(self._std_dev_price_deviation[symbol])
+            
+            
     def _update_sma_for_price_dev(self, price_event):
-        """Helper function of the _store_price_and_update_data_structures method. Updates the simple moving average for the price deviation."""
+        """Helper function of the _store_price_and_update_data_structures method. Updates the simple moving average for the price deviation. Also stores information in the price histories"""
         for symbol in self.symbols:
             if symbol not in self._price_history_sma_for_price_dev:
                 self._price_history_sma_for_price_dev[symbol] = deque(maxlen = self.sma_period + 1)
+                self._price_history_std_dev_prices[symbol] = deque(maxlen = self.sma_period + 1)
                 
             self._prev_sma_for_price_dev[symbol] = self._sma_for_price_dev[symbol]            
             self._price_history_sma_for_price_dev[symbol].append(price_event[symbol])
+            
+            self._price_history_std_dev_prices[symbol].append(price_event[symbol])
+            
             if len(self._price_history_sma_for_price_dev[symbol]) < 2:
                 self._sma_for_price_dev[symbol] = price_event[symbol]
             elif len(self._price_history_sma_for_price_dev[symbol]) > self.sma_period:
@@ -680,57 +707,57 @@ class SimpleStatArb:
     def _update_correlations(self):
         """Helper function of the _store_price_and_update_data_structures method. Updates the correlations between the trading instrument and the other symbols."""
         
-        old_price_dev_trading_instrument = self._update_sma_std_dev_trading_instrument()
+        old_price_trading_instrument = self._update_sma_std_dev_trading_instrument()
         for symbol in self.symbols:
             if symbol == self.trading_instrument_symbol:
                 continue
             
-            if len(self._price_deviation_from_sma_history[symbol]) < 2:
-                self._sma_for_price_dev_std_dev[symbol] = self._price_deviation_from_sma_history[symbol][-1]
-                self._std_dev_price_deviation[symbol] = 0
+            if len(self._price_history_std_dev_prices[symbol]) < 2:
+                self._sma_for_std_dev_prices[symbol] = self._price_history_std_dev_prices[symbol][-1]
+                self._std_dev_prices[symbol] = 0
                 self._covariance_with_instrument[symbol] = 0
                 self._correlation_with_instrument[symbol] = 0
                 self.historical_correlations[symbol].append(0)
                 continue
             
             new_covariance = 0
-            self._prev_sma_for_price_dev_std_dev[symbol] = self._sma_for_price_dev_std_dev[symbol]     
-            if len(self._price_deviation_from_sma_history[symbol]) > self.price_dev_num_prices:
-                old_price_dev = self._price_deviation_from_sma_history[symbol].popleft()
-                self._update_price_deviation_std_dev(symbol, old_price_dev)
+            self._prev_sma_for_std_dev_prices[symbol] = self._sma_for_price_dev[symbol]     
+            if len(self._price_history_std_dev_prices[symbol]) > self.std_dev_period:
+                old_price = self._price_history_std_dev_prices[symbol].popleft()
+                self._update_std_dev_prices(symbol, old_price)
 
                 new_covariance = compute_rolling_covariance_online(
                     self._covariance_with_instrument[symbol],
-                    self._prev_sma_for_price_dev[symbol],
-                    self._prev_sma_for_price_dev[self.trading_instrument_symbol],
-                    self.price_dev_num_prices,
-                    len(self._price_deviation_from_sma_history[symbol]),
-                    self._price_deviation_from_sma_history[symbol][-1], 
-                    self._price_deviation_from_sma_history[self.trading_instrument_symbol][-1],
-                    old_price_dev,
-                    old_price_dev_trading_instrument
+                    self._prev_sma_for_std_dev_prices[symbol],
+                    self._prev_sma_for_std_dev_prices[self.trading_instrument_symbol],
+                    self.std_dev_period,
+                    len(self._price_history_std_dev_prices[symbol]),
+                    self._price_history_std_dev_prices[symbol][-1], 
+                    self._price_history_std_dev_prices[self.trading_instrument_symbol][-1],
+                    old_price,
+                    old_price_trading_instrument
                     )
             else:
                 self._update_price_deviation_std_dev(symbol)
                 new_covariance = compute_rolling_covariance_online(
                     self._covariance_with_instrument[symbol],
-                    self._prev_sma_for_price_dev[symbol],
-                    self._prev_sma_for_price_dev[self.trading_instrument_symbol],
-                    self.price_dev_num_prices,
-                    len(self._price_deviation_from_sma_history[symbol]),
-                    self._price_deviation_from_sma_history[symbol][-1], 
-                    self._price_deviation_from_sma_history[self.trading_instrument_symbol][-1],
+                    self._prev_sma_for_std_dev_prices[symbol],
+                    self._prev_sma_for_std_dev_prices[self.trading_instrument_symbol],
+                    self.std_dev_period,
+                    len(self._price_history_std_dev_prices[symbol]),
+                    self._price_history_std_dev_prices[symbol][-1], 
+                    self._price_history_std_dev_prices[self.trading_instrument_symbol][-1],
                     )
             
-            self._std_dev_price_deviation_history[symbol].append(self._std_dev_price_deviation[symbol])
+            self._std_dev_prices_history[symbol].append(self._std_dev_prices[symbol])
             self._covariance_with_instrument[symbol] = new_covariance
-            if self._std_dev_price_deviation[symbol] * self._std_dev_price_deviation[self.trading_instrument_symbol] != 0:
-                self._correlation_with_instrument[symbol] = new_covariance / (self._std_dev_price_deviation[symbol] * self._std_dev_price_deviation[self.trading_instrument_symbol])
+            if self._std_dev_prices[symbol] * self._std_dev_prices[self.trading_instrument_symbol] != 0:
+                self._correlation_with_instrument[symbol] = new_covariance / (self._std_dev_prices[symbol] * self._std_dev_prices[self.trading_instrument_symbol])
             else:
                 self._correlation_with_instrument[symbol] = 0
                 
             # storing for plotting
-            if len(self._price_deviation_from_sma_history[symbol]) < 10:
+            if len(self._price_history_std_dev_prices[symbol]) < 10:
                 self.historical_correlations[symbol].append(0)
             else:
                 self.historical_correlations[symbol].append(self._correlation_with_instrument[symbol])
@@ -817,30 +844,7 @@ class SimpleStatArb:
             print("Risk violated: holding time exceeded the limit")
 
             
-    ##################################################### SECOND LEVEL HELPER FUNCTIONS OF THE _store_price_and_update_data_structures METHOD #####################################################
-    
-            
-    def _update_std_dev_prices(self, symbol, old_price_dev = None):
-        """Helper function of the _update_correlations method. Updates the standard deviation of the price deviation from the simple moving average."""
-        
-        self._sma_for_price_dev_std_dev[symbol] = compute_rolling_mean_online(
-            self._sma_for_price_dev_std_dev[symbol],
-            self.price_dev_num_prices,
-            len(self._price_deviation_from_sma_history[symbol]),
-            self._price_deviation_from_sma_history[symbol][-1],
-            old_price_dev
-            )
-        
-        self._std_dev_price_deviation[symbol] = compute_rolling_std_dev_online(
-            self._std_dev_price_deviation[symbol],
-            self._sma_for_price_dev_std_dev[symbol],
-            self._prev_sma_for_price_dev_std_dev[symbol],
-            self.price_dev_num_prices,
-            len(self._price_deviation_from_sma_history[symbol]),
-            self._price_deviation_from_sma_history[symbol][-1],
-            old_price_dev
-            )
-    
+    ##################################################### SECOND LEVEL HELPER FUNCTIONS OF THE _store_price_and_update_data_structures METHOD #####################################################    
     
     def _update_price_deviation_std_dev(self, symbol, old_price_dev = None):
         """Helper function of the _update_correlations method. Updates the standard deviation of the price deviation from the simple moving average."""
@@ -862,20 +866,43 @@ class SimpleStatArb:
             self._price_deviation_from_sma_history[symbol][-1],
             old_price_dev
             )
+        
+    
+    def _update_std_dev_prices(self, symbol, old_price = None):
+        """Helper function of the _update_correlations method. Updates the standard deviation of the price deviation from the simple moving average."""
+        
+        self._sma_for_std_dev_prices[symbol] = compute_rolling_mean_online(
+            self._sma_for_std_dev_prices[symbol],
+            self.std_dev_period,
+            len(self._price_history_sma_for_price_dev[symbol]),
+            self._price_history_sma_for_price_dev[symbol][-1],
+            old_price
+            )
+        
+        self._std_dev_prices[symbol] = compute_rolling_std_dev_online(
+            self._std_dev_prices[symbol],
+            self._sma_for_std_dev_prices[symbol],
+            self._prev_sma_for_std_dev_prices[symbol],
+            self.price_dev_num_prices,
+            len(self._price_history_sma_for_price_dev[symbol]),
+            self._price_history_sma_for_price_dev[symbol][-1],
+            old_price
+            )
 
     
     def _update_sma_std_dev_trading_instrument(self):
         """Helper function of the _update_correlations method. Updates the simple moving average and the standard deviation of the price deviation from the simple moving average for the trading instrument only."""
         
-        if len(self._price_deviation_from_sma_history[self.trading_instrument_symbol]) < 2:
-            self._sma_for_price_dev_std_dev[self.trading_instrument_symbol] = self._price_deviation_from_sma_history[self.trading_instrument_symbol][-1]
-            self._std_dev_price_deviation[self.trading_instrument_symbol] = 0
-        elif len(self._price_deviation_from_sma_history[self.trading_instrument_symbol]) > self.price_dev_num_prices:
-            old_price_dev = self._price_deviation_from_sma_history[self.trading_instrument_symbol].popleft()
-            self._update_price_deviation_std_dev(self.trading_instrument_symbol, old_price_dev)
-            return old_price_dev
+        if len(self._price_history_std_dev_prices[self.trading_instrument_symbol]) < 2:
+            self._sma_for_std_dev_prices[self.trading_instrument_symbol] = self._price_history_std_dev_prices[self.trading_instrument_symbol][-1]
+            self._std_dev_prices[self.trading_instrument_symbol] = 0
+            self._price_history_std_dev_prices[self.trading_instrument_symbol].append(0)
+        elif len(self._price_history_std_dev_prices[self.trading_instrument_symbol]) > self.price_dev_num_prices:
+            old_price = self._price_history_std_dev_prices[self.trading_instrument_symbol].popleft()
+            self._update_std_dev_prices(self.trading_instrument_symbol, old_price)
+            return old_price
         else:
-            self._update_price_deviation_std_dev(self.trading_instrument_symbol)
+            self._update_std_dev_prices(self.trading_instrument_symbol)
             
         
 
