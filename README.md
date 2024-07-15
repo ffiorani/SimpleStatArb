@@ -5,3 +5,5 @@ In this repo I implement a basic trend-following Statistical Arbitrage Strategy.
 In SimpleStatisticalArbitrage.ipynb, I select a few exchange rates as the leading instruments that will determine the trend. Following "Learn Algorithmic Trading" by Ghosh and Donadio (https://www.amazon.co.uk/Learn-Algorithmic-Trading-algorithmic-strategies/dp/178934834X), I use "CADUSD" as trading instrument. I track the correlation between the different exchange rates and look at the valuation difference time series. I compute a weighted average of the leading exchange prices weighted by correlation with the trading instrument. If the price of the trading instrument deviates from this average, I adjust my portfolio accordingly.
 
 I implemented strategy adjustment and risk management base on the volatility of the market and historical data of the strategy, such as maximum numbers of trade per time frame, maximum pnl loss within time frame and maximum position.
+
+As seen in the SimpleStatArb.ipynb, I obtain a Sharpe ratio of 1.26 over a three year period.
