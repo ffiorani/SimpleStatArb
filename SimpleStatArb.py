@@ -819,28 +819,6 @@ class SimpleStatArb:
             
     ##################################################### SECOND LEVEL HELPER FUNCTIONS OF THE _store_price_and_update_data_structures METHOD #####################################################
     
-            
-    def _update_std_dev_prices(self, symbol, old_price_dev = None):
-        """Helper function of the _update_correlations method. Updates the standard deviation of the price deviation from the simple moving average."""
-        
-        self._sma_for_price_dev_std_dev[symbol] = compute_rolling_mean_online(
-            self._sma_for_price_dev_std_dev[symbol],
-            self.price_dev_num_prices,
-            len(self._price_deviation_from_sma_history[symbol]),
-            self._price_deviation_from_sma_history[symbol][-1],
-            old_price_dev
-            )
-        
-        self._std_dev_price_deviation[symbol] = compute_rolling_std_dev_online(
-            self._std_dev_price_deviation[symbol],
-            self._sma_for_price_dev_std_dev[symbol],
-            self._prev_sma_for_price_dev_std_dev[symbol],
-            self.price_dev_num_prices,
-            len(self._price_deviation_from_sma_history[symbol]),
-            self._price_deviation_from_sma_history[symbol][-1],
-            old_price_dev
-            )
-    
     
     def _update_price_deviation_std_dev(self, symbol, old_price_dev = None):
         """Helper function of the _update_correlations method. Updates the standard deviation of the price deviation from the simple moving average."""
